@@ -1,0 +1,292 @@
+/**************************************************************** 
+*  correct_bisp_hege
+*
+*  Contains: photon_corr_mask_hege()
+*  called by correct_bisp.c
+*
+*  Same as photon_corr_mask, but with hege's method 
+*  (fits to the power spectrum a parametric model of the photon response) 
+*
+* JLP
+* Version 16-06-2008
+*****************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <math.h>
+#include <jlp_ftoc.h>
+#include "jlp_cover_mask.h"
+
+#define DEBUG
+
+/* Contained here and defined in jlp_cover_mask.h: 
+int photon_corr_mask_hege(float *bispp, float *modsq, float *phot_modsq,
+                          INT4 *nx, INT4 *ny, INT4 *bisp_dim, float *xphot,
+                          INT4 *nbeta, INT4 *ngamma)
+*/
+static int compute_nphotons_test(float *modsq, float *bispp, int ngamma, 
+                                 int nx, int ny, float a1, float *xphot);
+
+/**************************************************************** 
+* Photon noise correction with Hege's method 
+*
+*  Input:
+* modsq[]: mean normalized squared modulus (with zero frequency at nx/2,ny/2)
+* phot_modsq[]: power spectrum of photon response (with 0 freq. at nx/2,ny/2) 
+* xphot: mean photon flux per frame 
+* bispp[]: bispectrum (sorted in a "standard" way, and thus different
+*         from what is needed by photon_corr...)
+*
+* Photon noise correction (cf JOSA 2, 14, Wirnitzer):
+* (When spectrum normalized to one in the center)
+* <i(u)>**2 = E(D...)/N**2 - 1/N
+*
+* <i(3)(u,v)> = E(D(3)(u,v)/N**3 - E(D(2)(u)/N**2)/N - E(D(2)(v)... +2/N**3)
+*****************************************************************/
+int photon_corr_mask_hege(float *bispp, float *modsq, float *phot_modsq,
+                          INT4 *nx, INT4 *ny, INT4 *bisp_dim, float *xphot,
+                          INT4 *nbeta, INT4 *ngamma)
+{
+float *xmodsq, *phot_re, a0, a1, epsilon=1.e-12; 
+float scale, k_factor, k_correction;
+double work1;
+INT4 k1, k2, k3, iix, iiy, nb, ixc, iyc;
+INT4 ng, iklm;
+register int i;
+
+/* DDDEBUG: test
+k_factor = 1.;
+*/
+k_factor = *xphot;
+
+ixc = (*nx)/2;
+iyc = (*ny)/2;
+scale = phot_modsq[ixc + iyc * (*nx)];
+
+printf("phot_modsq(0)=%f\n", scale);
+
+/*
+printf("\n\n JLPPPP/DDDEBUG: I do not normalize here to test the simulation \n\n");
+k_factor = sqrt(phot_modsq[ixc + iyc * (*nx)]);
+scale = 1.;
+*/
+
+if(scale == 0) {
+ fprintf(stderr," photon_corr_mask_hege/Error: phot_modsq[0]=%f\n", scale);
+ exit(-1);
+ } else {
+ for(i = 0; i < (*nx) * (*ny); i++) phot_modsq[i] /= scale; 
+ }
+
+/* JLP96: */
+/* Number of photons:  xphot**2 + xphot - modsq_0 = 0
+* (for photon-counting devices!)
+* Delta = b**2 - 4 a*c = 1 + 4 * modsq_0
+* Solutions: (- b +/- sqrt(Delta))/2a
+*  i.e.,     (-1 + sqrt(1 + 4 * modsq_0) )/2
+*/
+  *xphot = 0.;
+  work1 = (-1. + sqrt((double)(1. 
+       + 4. * modsq[ixc + (iyc * (*nx))]/phot_modsq[ixc + (iyc * (*nx))])))/2.;
+  printf(" My estimate of xphot (from modsq[0 freq]) is: %f, whereas yours is: %f \n",
+           work1,*xphot);
+/* End of JLP96. */
+
+/* Fit phot_modsq = |g(v)|^2 to the outer parts of modsq: 
+fit_photon_model_to_modsq(modsq, phot_modsq, &a0, &a1, *nx, *ny, *nx);
+*/
+
+/* New version with median: 
+*/
+compute_nphotons(modsq, phot_modsq, &a1, *nx, *ny, *nx);
+
+/* N = a1 * k^2 */
+*xphot = a1 * SQUARE(k_factor);
+
+/* Correction of the experimental power spectrum: */
+for(i = 0; i < (*nx) * (*ny); i++){ 
+    modsq[i] = (modsq[i] / (a1 * phot_modsq[i] + epsilon)) - 1.;
+/* Multiplication with N of the corrected power spectrum, to make it 
+compatible with the bispectrum (for bisp_to_image...): */
+    modsq[i] *= *xphot;
+    }
+
+
+/* Allocation of memory for xmodsq, modsq on the spectral list: */
+if((xmodsq = (float *)malloc((*nbeta + 1) * sizeof(float))) == NULL)
+ {
+ printf("photon_corr_mask/fatal error, allocating memory space \n");
+ exit(-1);
+ }
+
+if((phot_re = (float*)malloc((*nbeta + 1) * sizeof(float))) == NULL)
+ {
+ printf("photon_corr_mask/fatal error, allocating memory space \n");
+ free(xmodsq);
+ exit(-1);
+ }
+
+/* IXY(1,NB) and IXY(2,NB) are the X,Y coordinates of the
+* element NB of the spectral list.
+* As they (i.e. IXY) can be negative, and that zero frequency is at (0,0),
+* we do the following transformation:
+*/
+  for(nb = 0; nb <= *nbeta; nb++)
+     {
+/* Get coordinates (i,j) from nb index: */
+       COVER_IXY(&iix, &iiy, &nb);
+/* OLD VERSION (assuming that zero freq. is at (0,0):
+       iix = ((iix + *nx) % *nx);
+       iiy = ((iiy + *ny) % *ny);
+*/
+/* NEW VERSION (since that zero freq. has been shifted to (nx/2ny/2):
+*/
+       iix += (*nx)/2;
+       iiy += (*ny)/2;
+/* The photon response is assumed to be symmetric and real, hence its FT is real: */
+       phot_re[nb] = sqrt(phot_modsq[iix + iiy * (*nx)]);
+/* xmodsq is used to store the corrected square modulus */
+       xmodsq[nb] = modsq[iix + iiy * (*nx)];
+#ifdef DEBUG
+       if(nb < 4) {
+         printf(" nb = %d iix, iiy: %d %d \n",nb,iix,iiy);
+         printf(" xmodsq=%f phot_modsq=%f\n", xmodsq[nb], phot_modsq[nb]);
+       }
+#endif
+     }
+
+
+/****************************************************************/
+/* Phase factor of the bispectrum (with bispectral list):
+* and correction from photon noise effects:
+*/
+
+/* Division by the real and imaginary parts of the bispectrum 
+* by the photon response: 
+* (from 2000 onwards...)
+*/
+for(ng = 0; ng < *ngamma; ng++) {
+     cover_klm0(&k1,1,ng);
+     cover_klm0(&k2,2,ng);
+     cover_klm0(&k3,3,ng);
+     work1 = phot_re[k1] * phot_re[k2] * phot_re[k3] + epsilon;
+     bispp[ng] /= work1;
+     bispp[ng + *bisp_dim] /= work1;
+  }
+
+/* Compute xphot, the mean number of photons per frame: */
+/*
+ compute_nphotons_test(modsq, bispp, *ngamma, *nx, *ny, a1, xphot);
+*/
+
+ iklm = 0;
+k_correction = 1. / (k_factor * k_factor * k_factor);
+for(ng = 0; ng < *ngamma; ng++)
+ {
+     cover_klm0(&k1,1,ng);
+     cover_klm0(&k2,2,ng);
+     cover_klm0(&k3,3,ng);
+
+/* Photon noise correction 
+     work1 = (xmodsq[k1] + xmodsq[k2] + xmodsq[k3] - 2 * *xphot);
+     if xmodsq is not corrected
+     or
+     work1 = (xmodsq[k1] + xmodsq[k2] + xmodsq[k3] + *xphot);
+     if xmodsd is corrected (i.e. xmodsq := xmodsq - xphot)
+*/
+     work1 = (xmodsq[k1] + xmodsq[k2] + xmodsq[k3]  + *xphot) * k_correction; 
+#ifdef DEBUG
+     if(ng < 4) {
+        printf(" ng = %d k, l, m: %d %d %d \n",ng,k1,k2,k3);
+        printf(" xmodsq1, xmodsq2, xmodsq3 %f %f %f (k_corr=%f)\n",
+                xmodsq[k1], xmodsq[k2], xmodsq[k3], k_correction);
+        printf(" ng= %d bispp=%f correction= %f (xphot=%f)\n",
+               ng, bispp[ng], work1, *xphot);
+     }
+#endif
+     bispp[ng] -= work1;
+  }
+
+free(phot_re);
+free(xmodsq);
+return(0);
+}
+/********************************************************************** 
+* Compute the mean number of photons per frame
+* by comparing the corrected bispectrum and the corrected power spectrum
+***********************************************************************/
+static int compute_nphotons_test(float *modsq, float *bispp, int ngamma, 
+                            int nx, int ny, float a1, float *xphot)
+{
+double sum, sum_bisp, epsilon=1.e-8, norm1, norm2;
+int npts, npts_bisp, ixc, iyc, ix1, iy1, ix2, iy2, k1, k2, ng;
+
+ixc = nx/2;
+iyc = ny/2;
+
+sum = 0.;
+sum_bisp = 0.;
+npts = 0;
+npts_bisp = 0;
+for(ng = 0; ng < ngamma; ng++) {
+     cover_klm0(&k1,1,ng);
+     cover_klm0(&k2,2,ng);
+/* Get coordinates (i,j) from nb index: */
+     COVER_IXY(&ix1, &iy1, &k1);
+     COVER_IXY(&ix2, &iy2, &k2);
+     norm1 = SQUARE(ix1) + SQUARE(iy1);
+     norm2 = SQUARE(ix2) + SQUARE(iy2);
+/* OLD version:
+     ix1 = ((ix1 + nx) % nx);
+     iy1 = ((iy1 + ny) % ny);
+     ix2 = ((ix2 + nx) % nx);
+     iy2 = ((iy2 + ny) % ny);
+*/
+/* NEW VERSION (since that zero freq. has been shifted to (nx/2ny/2):
+*/
+     ix1 += nx/2;
+     iy1 += ny/2;
+     ix2 += nx/2;
+     iy2 += ny/2;
+     if(norm1 > 40 && norm2 > 40) {
+/* If norm1 is small, I compare with modsq2 which corresponds to norm1=0 */
+     if(norm1/(norm2 + epsilon) < 0.1) {
+       sum += bispp[ng] - modsq[ix2 + iy2 * nx];
+       npts++;
+       if(npts < 20) printf(" ix1,iy1= %d %d ix2,iy2= %d %d norm1=%.1f norm2=%.1f bisp,modsq= %.1f %.1f \n", 
+            ix1, iy1, ix2, iy2, norm1, norm2, bispp[ng], modsq[ix2 + iy2 * nx]);
+/* If norm2 is small, I compare with modsq1 which corresponds to norm1=0 */
+     } else if(norm2/(norm1 + epsilon) < 0.1) {
+       sum += bispp[ng] - modsq[ix1 + iy1 * nx];
+       npts++;
+       if(npts < 20) printf(" ix1,iy1= %d %d ix2,iy2= %d %d norm1=%.1f norm2=%.1f bisp,modsq= %.1f %.1f \n", 
+            ix1, iy1, ix2, iy2, norm1, norm2, bispp[ng], modsq[ix2 + iy2 * nx]);
+    }
+     if(norm1/(norm2 + epsilon) > 0.5 && norm2/(norm1 + epsilon) > 0.5) {
+       sum_bisp += bispp[ng];
+       npts_bisp++;
+     }
+    }
+ }
+printf("\n\n *************** npts=%d  npts_bisp=%d\n", npts, npts_bisp);
+if(npts) {
+   sum /= (float)npts;
+   printf(" *************** mean=%f\n", sum);
+} else {
+sum = 1.;
+}
+if(npts_bisp) {
+   sum_bisp /= (float)npts_bisp;
+   printf(" *************** mean bisp =%f\n", sum_bisp);
+}
+
+/* TEST JLP20088 */
+for(ng = 0; ng < ngamma; ng++) {
+  bispp[ng] /= sum;
+ }
+
+/* DEBUG ONLY! */
+ *xphot = a1;
+return(0);
+}

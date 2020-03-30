@@ -1,0 +1,51 @@
+-----------------
+Noise Bias
+
+A better bias calibration than shown in Fig(3) can be achieved using a
+parameterized model.
+
+E.K.Hege (1989) "Notes on noise calibration of speckle imagery," in D.M. Alloin
+and J.-M. Mairotti (eds.), Diffraction-Limited Imaging with Very Large
+Telescopes, 113-124, Kluwer Academic Publishers.
+
+By using their observed ICCD photon response function, authors' Fig 4, a very
+useful analytic model, Hege Eq(7), can be parameterized.  The resultant \bar N
+can be inferred quite accurately from the Std. Dev. of the expected debiased
+spectrum, Hege Eq(8) -- Variance(\bar N) = 1. / (Std. Dev)^2 = \bar N.  This
+has proven to be quite accurate when the f-dependence of bias has been
+satisfactorialy flattened.  For ICCD responses such as Fig 4, it is necessary
+to add a further "cylindric" term to Hege Eq(7): C exp(-(s_{xc}(90 \dg)*f)).
+When this simple seven parameter (s_x s_y s_{xc} \theta A B C) model is used in
+Hege Eq(8) the resulting bias is remarkably flat beyond f_c in both X and Y,
+unlike residuals shown in authors' Fig 3 curve (d), and the \bar N estimated
+from a Poisson statistics model is remarkable accurate. Note that prior
+knowledge of \bar N is not required for the debias; the statistics of the
+measurement provides it.
+
+E.K. Hege, A. Eckart and J.C. Christou (1986) "The noise bias problem in
+optical speckle imaging," in  D.L. Crawford (ed.), Instrumentation in Astronomy
+VI, SPIE Vol. 627, 772-779.
+
+discussed the effects of errors in modelling the photon bias.  Notwithstanding
+the remark therein that "For bright objects, this [model based debias] is no
+limitation; for faint objects it is disastrous." the objects observed in this
+work are "Bright -- below 7.5 - 10 magnitude where the effect begins to be
+appreciable.  In fact, Hege et al. (198) found the method useful to 11 - 13
+magnitude where other video raster artifacts start to dominate. Experience
+noted therein showed that the bigger problem was calibration of the
+low-frequency response due to differences in seeing between program object and
+reference star calibration, however this has (surprisingly) less effect on the
+accuracy of estimating binaary star contrast, a point relevant to the SI
+photometry which the authors discuss not at all in this work (it contributes to
+a bias -- DC offset and background noise -- in the image plane.  The effect of
+atmospheric seeing compensation on the photometric error depends upon how the
+contrast is measured, as of course contrast can be inferred in either the
+visibility or image domain.
+  
+Keith Hege
+Steward Observatory
+University of Arizona
+                                             July 4, 2002
+
+(From the referee's report of "Speckle Observations of Composite Spectrum Stars:
+II. Differential Photometry of the Binary Components" (ms56199).) 

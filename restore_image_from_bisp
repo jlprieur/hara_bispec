@@ -1,0 +1,80 @@
+#############################################################################
+# How to obtain an image from the bispectrum
+#
+#
+# Number 1:  120906_ads11454ab-cd_Rd_8
+# Number 2:  180906_ads11454ab-cd_sfd_8
+# Number 3:  180906_ads11454ab-cd_20_Rd_8
+# JLP
+# Version 10/04/2008
+#############################################################################
+goto deconv 
+runs compute_bisp ttv2_0.PHIN 30,200 simu 
+goto end
+#############################################################################
+# 1. Phase recovery from the bispectrum
+# To correct photon bias on the power spectrum (fraction=3 if GV=7, 1 if GV=6):
+# ALWAYS with phot_gv7_*
+# runs correct_bisp in_exten out_exten phot_modsq flat_field 
+#                   ir,max_nclo,fraction nphot_per_frame
+# bisp2_m is OK. 
+runs correct_bisp ads11454_bisp2_ tt2_ phot_gv7_128 0 30,200,1. 52. 
+# ir,cte,exit_tolerance,nbeta,lower_modulus,sig_max,sigma_null,nclosure_max
+# ads11454_sfd2_m is the modulus obtain with the direct reduction
+# (this does not improve the final image)
+#runs inv_bispec2 1 30,0,0.1,1400,0.,1.0,0.5,200 ttv2_0 ads11454_sfd2_m tt2_b
+# (So I go back to the modulus obtained with the recorded tape:) 
+runs inv_bispec2 1 30,0,0.1,1600,0.,1.0,0.5,200 ttv2_0 tt2_m tt2_b
+# => ttv2_0.SNR and ttv2_0.SIG according to the standard deviation of the
+#    spectrum as found by the recursive solution.
+runs fft2 -1 ttv2_0.RFT n ttv2_0.IFT ttv2_0 testi
+goto end
+snr_from_snrm:
+runs snr_from_snrm ads11454_bisp2_ ttv2_0
+# => ttv2_0.SNR and ttv2_0.SIG according to _snrm and _modsq files 
+goto end
+#############################################################################
+# 2. How to obtain the transfer function (FT of the PSF) 
+#############################################################################
+psf:
+cp $EXEC/unres_m.fits tt_m.fits
+# Normalized so that the sum is one, and then applies a threshold
+runs dc_ftmm tt_m ads11454_ref.FTB 0.000056 
+comp tt_i = tt_m / phot_gv7_128
+comp_c tt_r = tt_i.fits - 52 
+runs dc_ftmm tt_r ads11454_corr_ref.FTB 0.000005 
+# => ads11454_corr_ref.FTB
+goto end
+deconv:
+# alphaT = lower thresold of reliability of SNR in fourier domain
+# alphaPT = upper thresold of reliability of SNR in fourier domain
+# Determine this value by displaying ttv2_0.SNR ...
+# For SNR determined by inv_bispec2:
+set alphaT = 1.02
+set alphaPT = 1.5
+# For SNR determined by snr_from_snrm: 
+#set alphaT = 10 
+#set alphaPT = 45
+# With corrected PSF:
+# ellipse: xrad=35,yrad=45
+#runs dc_lissage $alphaT ttv2_0. 35.,45. ads11454_corr_ref.FTB
+#circle:
+runs dc_lissage $alphaT ttv2_0. 35. ads11454_corr_ref.FTB
+#runs dc_lissage $alphaT ttv2_0. 35. ads11454_ref.FTB
+# dc_lissage:
+#   IN: *.FTB, *.SNR, *.RFT, *.IFT
+#   OUT: *.HR (synthetic aperture), *.FLI (smoothing filter)
+#        *.PHIT  (first approx. of the object),
+#        *.PCR and *.PCI (real and imag. parts of the FT of *.PHIT)
+#mask_good was the best 
+runs dc_regul $alphaT ttv2_0. mask_1.fits $alphaPT 
+#runs dc_erreur ttv2_0. ads11454_ref.FTB $alphaT 
+runs dc_erreur ttv2_0. ads11454_corr_ref.FTB $alphaT 
+# => output eps1=603.49, eps2=603.49, eps3=0
+# Error of image reconstruction = sqrt(eps1)
+# Error due to the choice of Hr: epsilon_o = sqrt(eps2)
+# Error related to the SNR ratio: epsilon_i= sqrt(eps3)
+#
+runs dc_cgradient ttv2_0. 603.49,603.49,0.
+goto end
+end:

@@ -1,0 +1,125 @@
+C++
+C--
+
+# BISPECT
+% 7 	
+@ Program 
+> Computes the spectrum and bispectrum of an image (for simulations)
+
+# BUTTERW
+% 7 	
+@ Program 
+> Butterworth filter of Fourier transforms (centered).
+
+# CAR_SCALE 
+% 7 	
+@ Program 
+> To convert polar coordinates in pixels (OXY reference) to sky coordinates 
+> With geometric distortion correction.
+
+# D_ACTUAL
+% 7 	
+@ Program 
+> To actualize logical names for DIANE (no longer used with MIDAS)
+
+# D_CGRADIENT
+% 7 	
+@ Program 
+> Image reconstruction by application of conjugate gradients
+
+# D_ERREUR
+% 7 	
+@ Program 
+> Computation of the error terms which will be used by D_CGRADIENT
+
+# D_FTM
+% 7 	
+@ Program 
+> Computation and normalization of the TFM, from the impulsive response
+
+# D_LISSAGE
+% 7 	
+@ Program 
+> Regularisation of the problem
+
+# D_OBJETEST
+% 7 	
+@ Program 
+> Generates a test object for simulations
+
+# D_REPONS
+% 7 	
+@ Program 
+> To create an artificial impulsive response
+
+# D_SNR
+% 7 	
+@ Program 
+> To compute the SNR in Fourier space when SNR in direct space is known
+
+# DECODE_MAMA
+% 7 	
+@ Program 
+> Reads the file created by READ_MAMA, and computes the mean spectrum,
+> bispectrum, spectral ratio of a speckle integration.
+
+# FFT2
+% 7 	
+@ Program 
+> To compute FFT and inverse FFT (uses NAG routines).
+
+# GC_FFT
+% 7 	
+@ Program 
+> To compute FFT, from Gerard Coupinot's program (not working yet)
+
+# GENE_A
+% 7 	
+@ Program 
+> To generate a uv coverage from any configuration of telescopes (not working 
+> yet).
+
+# INV_BISPEC
+% 7 	
+@ Program 
+> To recover phase information from bipsectrum. Uses A. Lannes' algorithm.
+> For real data or simulations.
+> (Old name: "P.FOR")
+
+# JLP_BISPEC1
+% 7 	
+@ Set of subroutines
+> Called by DECODE_MAMA and BISPECT. Computes the spectrum and bispectrum.
+
+# JLP_COVER
+% 7 	
+@ Set of subroutines
+> Computes the parameters and coefficients of a compact pupil (uv coverage).
+> Called by INV_BISPEC and DECODE_MAMA.
+
+# OBJET
+% 7 	
+@ Program 
+> To create an image for simulations with INV_BISPEC.
+
+# PLOT_UV
+% 7 	
+@ Program 
+> To plot uv coverage (for a single pupil configuration)
+
+# READ_MAMA
+% 7 	
+@ Program 
+> To read a tape in the ESO/MAMA format. Reads speckle and direct integration
+> images. Should use DECODE_MAMA after this stage to go further in the data
+> reduction.
+
+# SNR_BISPEC
+% 7 	
+@ Program 
+> To compute SNR of the bispectrum list.
+
+# SNR_SPEC
+% 7 	
+@ Program 
+> To compute SNR of a spectrum

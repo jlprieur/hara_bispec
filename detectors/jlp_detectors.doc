@@ -1,0 +1,66 @@
+C++
+C--
+
+/*
+aris_pws.c
+autoc_car.c
+autoco.c
+autoc_set.c
+bispect.for
+car_scale.c
+dec_car3_1D.c
+dec_car4.c
+decode_car_1D.c
+decode_car2.c
+decode_cp400.c
+decode_cp40.c
+decode_cp40.c.old
+decode_cp40.com*
+decode_cp40.old
+decode.make
+decode_mama.com*
+decode_mama.for
+decode_mam.c
+decode_papa.com*
+decode_papa.for
+decode_set.c
+decode_ttau.c
+jlp_detectors.doc
+jlp_short.c
+lk_fmt2.c
+lk_fmt2.c.old
+lk_fmt2.h
+read_mama.for
+saad_car.c
+*/
+
+# CAR_SCALE 
+% 7 	
+@ Program 
+> To convert polar coordinates in pixels (OXY reference) to sky coordinates 
+> With geometric distortion correction.
+
+# DECODE_MAMA
+% 7 	
+@ Program 
+> Reads the file created by READ_MAMA, and computes the mean spectrum,
+> bispectrum, spectral ratio of a speckle integration.
+
+# JLP_BISPEC1
+% 7 	
+@ Set of subroutines
+> Called by DECODE_MAMA and BISPECT. Computes the spectrum and bispectrum.
+
+# JLP_COVER
+% 7 	
+@ Set of subroutines
+> Computes the parameters and coefficients of a compact pupil (uv coverage).
+> Called by INV_BISPEC and DECODE_MAMA.
+
+# READ_MAMA
+% 7 	
+@ Program 
+> To read a tape in the ESO/MAMA format. Reads speckle and direct integration
+> images. Should use DECODE_MAMA after this stage to go further in the data
+> reduction.
+
